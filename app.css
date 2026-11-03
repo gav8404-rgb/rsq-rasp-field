@@ -1,0 +1,77 @@
+/* RSQ RASP field app shell (offline-install-r2). DAY = default; NIGHT = body.rasp-night (same switch the Ops Center
+   modules use). r1 form styles are scoped to the pair / unlock / TSS screens so they never restyle the module views. */
+:root{--navy:#173d51;--ink:#213845;--muted:#627785;--line:#dce5e9;--bg:#f3f6f7;--card:#fff;--red:#bd3543;--green:#207357;--amber:#875700;--field:#fff;--fieldline:#b9c7cf;--tabbg:#ffffff;--tabfg:#586d78;--tabon:#137d83;--topbg:#ffffff;
+ --s5-bg:#FFFFFF;--s5-fg:#1B3039;--s5-muted:#586D78;--s5-accent:#137D83;--s5-line:#CDDCE0;--s5-panel:#EEF5F5;--s5-amber:#8A570E;--tabh:58px;color-scheme:light}
+body.rasp-night{--navy:#73CED0;--ink:#E7EDF0;--muted:#A8BAC4;--line:#263840;--bg:#080e12;--card:#101C25;--green:#7fd6a8;--amber:#edbd73;--red:#ff7f8a;--field:#0a1016;--fieldline:#35515a;--tabbg:#0c151b;--tabfg:#8da1ad;--tabon:#53d7ce;--topbg:#0c151b;
+ --s5-bg:#101C25;--s5-fg:#E7EDF0;--s5-muted:#A8BAC4;--s5-accent:#73CED0;--s5-line:#344B59;--s5-panel:#1B303C;--s5-amber:#E9BF76;color-scheme:dark}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Georgia,serif;
+ padding:0 env(safe-area-inset-right) calc(var(--tabh) + env(safe-area-inset-bottom)) env(safe-area-inset-left);overscroll-behavior-y:none}
+/* top bar: safe-area aware, sticky */
+header.top{position:sticky;top:0;z-index:30;display:flex;gap:10px;align-items:center;padding:calc(6px + env(safe-area-inset-top)) 12px 6px;background:var(--topbg);border-top:3px solid var(--red);border-bottom:1px solid var(--line)}
+header.top img{border-radius:6px;flex:none}.ttl{flex:1 1 auto;min-width:0}
+.brand{font-weight:700;font-size:14px;letter-spacing:1px;color:var(--navy)}
+.sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;background:#eaf0f4;color:var(--navy);flex:none}.chip.ok{background:#e5f3ec;color:#23694d}.chip.off{background:#fff1d9;color:#875700}
+button.icon{flex:none;width:40px;height:40px;min-height:40px;padding:0;margin:0;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:18px;line-height:1;cursor:pointer}
+.banner{margin:8px 12px;padding:10px 12px;border-radius:8px;background:#fff1d9;color:#5c3b00;font-size:14px}.banner.warn{border-left:4px solid #d9b36c}
+body.rasp-night .banner{background:#30291d;color:#edbd73}
+.banner button{margin:0 0 0 8px;min-height:36px;padding:6px 10px;border:0;border-radius:6px;background:var(--navy);color:#fff;font:inherit}
+main{display:block}
+.view{min-height:calc(100dvh - 120px)}.view[hidden]{display:none}
+.view[data-view="map"],.view[data-view="sitrep"],.view[data-view="conop"]{padding:0}
+.view[data-view="sitrep"]>*,.view[data-view="conop"]>*{max-width:100%}
+.empty-ops{margin:24px 16px;padding:16px;border:1px dashed var(--fieldline);border-radius:10px;color:var(--muted);font-size:15px;background:var(--card)}
+/* bottom tab bar: thumb reach, safe-area aware */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(4,1fr);background:var(--tabbg);border-top:1px solid var(--line);padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+nav.tabs[hidden]{display:none}
+nav.tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--tabh);min-height:var(--tabh);margin:0;padding:4px 2px;border:0;border-radius:0;background:transparent;color:var(--tabfg);font:700 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:.8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+nav.tabs button[aria-current="page"]{color:var(--tabon);box-shadow:inset 0 3px 0 var(--tabon)}
+.ti{display:block;width:24px;height:24px;background:currentColor;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.ti-map{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z'/%3E%3C/svg%3E")}
+.ti-sitrep{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 3h16v18H4zM7 7v2h10V7zm0 4v2h10v-2zm0 4v2h7v-2z' fill-rule='evenodd'/%3E%3C/svg%3E")}
+.ti-conop{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 4h18v3H3zm0 6h11v3H3zm0 6h15v3H3z'/%3E%3C/svg%3E")}
+.ti-tss{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 2h6v2h4v18H5V4h4zm1 2v2h4V4zm-1.5 9.5L7 15l3 3 7-7-1.5-1.5-5.5 5.5z'/%3E%3C/svg%3E")}
+/* module views: full width, phone-first */
+[data-view] .rb{border-radius:0;border-left:0;border-right:0}
+/* r2 polish: the app header already carries status; the MAP keeps the op title line (.rb-stagehead), not the COP banner or source-health row */
+[data-view="map"] .rb-top,[data-view="map"] .rb-health{display:none}
+[data-view] a[href^="tel:"]{color:inherit;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+.rb-tel b{color:var(--rb-cyan,#137d83)}
+/* r1 screens (pair, unlock, TSS) */
+[data-screen]{max-width:900px;margin:0 auto;padding:16px}
+.tss [data-screen]{padding-top:8px}
+[data-screen] h1{font-size:24px;color:var(--navy);margin:8px 0 12px;font-weight:600}[data-screen] h2{font-size:18px;color:var(--navy);margin:20px 0 8px}
+[data-screen] label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+[data-screen] :is(input,select,textarea){width:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--fieldline);border-radius:8px;background:var(--field);color:var(--ink)}
+[data-screen] textarea{resize:vertical;min-height:44px}
+[data-screen] button{font:inherit;font-size:16px;min-height:44px;padding:10px 16px;border-radius:8px;border:0;background:#173d51;color:#fff;cursor:pointer;margin-top:12px}
+body.rasp-night [data-screen] button{background:#73CED0;color:#101C25}
+[data-screen] button.ghost,body.rasp-night [data-screen] button.ghost{background:var(--card);color:var(--navy);border:1px solid var(--fieldline)}
+:is(button,input,select,textarea,a):focus-visible{outline:3px solid #b673dc;outline-offset:2px}
+.tss .bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 16px;background:#173d51;color:#fff;font-size:13px}
+#queued[data-count]:not([data-count="0"]){font-weight:700;color:#ffd38a}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}.actions select{flex:1 1 220px}.actions.small button{font-size:14px;min-height:40px;padding:8px 12px}
+#records{list-style:none;margin:0;padding:0}#records li{margin:6px 0}
+[data-screen] .rec{width:100%;display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);margin:0}
+.rec span{grid-column:1;font-size:13px;color:var(--muted)}.rec em{grid-row:1/3;grid-column:2;align-self:center}
+.tag{font-style:normal;font-size:11px;font-weight:700;padding:3px 7px;border-radius:4px;background:#eaf0f4;color:#173d51}.tag.ok{background:#e5f3ec;color:#23694d}.tag.warn{background:#fff1d9;color:#875700}.tag.bad{background:#fbe4e6;color:#bd3543}
+.group{border:1px solid var(--line);background:var(--card);border-radius:10px;margin:14px 0;padding:6px 12px 12px}.group legend{font-weight:700;color:var(--navy);padding:0 6px;font-size:15px}
+.row{border-top:1px dashed var(--line);margin-top:8px}.row:first-of-type{border-top:0}.rowlabel{font-size:12px;font-weight:700;color:var(--muted);margin-top:8px}
+.msg{font-size:14px;color:var(--green);min-height:1em}.msg.bad,.bad{color:var(--red)}
+.note{font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px}
+[data-view] .note{margin:8px 0}
+.banner.bad{background:#fbe4e6;color:#7a1c26;margin:10px 0}
+.empty{color:var(--muted);font-size:14px}.fatal{background:#fbe4e6;color:#7a1c26;padding:12px;margin:0}
+footer.build{text-align:center;color:var(--muted);font-size:11px;padding:16px}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+@media (min-width:768px){[data-screen]{padding:24px}.group{padding:8px 18px 16px}}
+/* r2: in-app confirm sheet before an external site opens (CONOP links) */
+.sheet{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:rgba(10,24,32,.45);padding:0 0 env(safe-area-inset-bottom)}
+.sheet[hidden]{display:none}
+.sheet-card{width:100%;max-width:560px;margin:0 8px 8px;padding:16px;border-radius:14px;background:var(--card,#fff);color:var(--ink,#173d51);box-shadow:0 8px 30px rgba(0,0,0,.25)}
+body.rasp-night .sheet-card{background:#1d2a31;color:#e6eef1}
+.sheet-q{margin:0 0 6px;font-size:17px}.sheet-q b{overflow-wrap:anywhere}
+.sheet-url{margin:0 0 14px;font-size:12px;opacity:.75;overflow-wrap:anywhere;max-height:4.5em;overflow:hidden}
+.sheet-actions{display:flex;gap:10px;justify-content:flex-end}.sheet-actions button{min-height:44px;min-width:96px}
+#extOpen{background:var(--navy);color:var(--card);border:0;font-weight:600}
