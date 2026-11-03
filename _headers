@@ -1,0 +1,27 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://www.rsqops.com; frame-src 'self' https://www.openstreetmap.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000
+/sw.js
+  Cache-Control: no-cache
+/config.json
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/
+  Cache-Control: no-cache
+/vault.mjs
+  Content-Type: text/javascript; charset=utf-8
+/transport.mjs
+  Content-Type: text/javascript; charset=utf-8
+/offline.mjs
+  Content-Type: text/javascript; charset=utf-8
+/codec.mjs
+  Content-Type: text/javascript; charset=utf-8
+/ops.mjs
+  Content-Type: text/javascript; charset=utf-8
+/manifest.webmanifest
+  Content-Type: application/manifest+json
