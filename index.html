@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://www.rsqops.com; frame-src https://www.openstreetmap.org; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>RSQ RASP</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RSQ RASP"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#173d51"><meta name="format-detection" content="telephone=no">
+<link rel="stylesheet" href="ops-modules.css"><link rel="stylesheet" href="app.css">
+</head><body>
+<header class="top">
+ <img src="icon-192.png" alt="" width="32" height="32">
+ <div class="ttl"><div class="brand">RSQ RASP</div><div id="opsUpdated" class="sub" aria-live="polite"></div></div>
+ <span id="net" class="chip">…</span>
+ <button id="themeBtn" type="button" class="icon" aria-label="Switch to night theme" aria-pressed="false">☾</button>
+ <button id="lock" type="button" class="icon" aria-label="Lock" hidden>🔒</button>
+</header>
+<div id="update" class="banner" hidden>A new app version is ready. <button id="reload" type="button">Reload</button></div>
+<div id="opsStale" class="banner warn" role="status" hidden></div>
+<div id="extSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="extQ" hidden><div class="sheet-card">
+ <p id="extQ" class="sheet-q">Open external site: <b id="extHost"></b>?</p>
+ <p id="extUrl" class="sheet-url"></p>
+ <div class="sheet-actions"><button id="extCancel" type="button" class="ghost">Cancel</button><button id="extOpen" type="button">Open</button></div>
+</div></div>
+<div id="repair" class="banner warn" role="status" hidden><span id="repairText"></span> <button id="pairAgain" type="button">Pair again</button></div>
+<main>
+<section data-screen="pair" hidden>
+ <h1>Pair this device</h1>
+ <p id="pairNote" class="banner warn" role="status" hidden></p>
+ <p id="iosHint" class="note" hidden>iPhone / iPad: tap Share → <b>Add to Home Screen</b> first, open RSQ RASP from the Home Screen icon, then pair inside that app. Safari and the Home Screen app keep separate storage.</p>
+ <p>On rsqops.com (members area, RASP page) tap <b>Pair a phone/tablet</b> and enter the one-time code here.</p>
+ <form id="pairForm" autocomplete="off">
+  <label for="pairCode">Pairing code</label><input id="pairCode" required inputmode="text" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX">
+  <label for="label">Device name (optional)</label><input id="label" maxlength="40" placeholder="e.g. My iPhone">
+  <label for="pass1">Device passphrase (encrypts data on this device)</label><input id="pass1" type="password" required minlength="12" autocomplete="new-password" aria-describedby="passHint">
+  <p id="passHint" class="hint">Use 4 or more random words, e.g. four unrelated words with spaces (at least 12 characters). Not a password you use anywhere else. If it is lost, unsynced data on this device cannot be recovered.</p>
+  <label for="pass2">Repeat passphrase</label><input id="pass2" type="password" required minlength="12" autocomplete="new-password">
+  <button type="submit">Pair device</button>
+ </form>
+ <button id="pairCancel" type="button" class="ghost" hidden>Back to unlock</button>
+ <p id="pairMsg" class="msg" role="status"></p>
+ <button id="installBtn" type="button" class="ghost" hidden>Install app</button>
+ <p id="swMsg" class="msg"></p>
+</section>
+<section data-screen="unlock" hidden>
+ <h1>Unlock</h1>
+ <form id="unlockForm"><label for="unlockPass">Device passphrase</label><input id="unlockPass" type="password" required autocomplete="current-password"><button type="submit">Unlock</button></form>
+ <p id="unlockMsg" class="msg" role="status"></p>
+</section>
+<section data-view="map" class="view" hidden aria-label="Map"></section>
+<section data-view="sitrep" class="view" hidden aria-label="SITREP"></section>
+<section data-view="conop" class="view" hidden aria-label="CONOP"></section>
+<section data-view="tss" class="view tss" hidden aria-label="TSS">
+ <div class="bar"><span id="ws"></span><span id="queued" data-count="0"></span></div>
+ <section data-screen="workspace" hidden>
+  <h1>Workspace</h1>
+  <label for="wsPick">Choose the workspace you are granted</label><select id="wsPick"></select>
+  <button id="wsGo" type="button">Open</button><p id="wsMsg" class="msg"></p>
+ </section>
+ <section data-screen="home" hidden>
+  <div class="actions"><select id="formNew" aria-label="Form for new record"></select><button id="newRec" type="button">New record</button></div>
+  <h2>Records</h2><ul id="records"></ul>
+  <p id="homeMsg" class="msg" role="status"></p>
+  <p id="syncinfo" class="msg"></p>
+  <div class="actions small"><button id="syncNow" type="button" class="ghost">Sync now</button><button id="switchWs" type="button" class="ghost">Workspace</button><button id="opsRefresh" type="button" class="ghost">Refresh ops data</button></div>
+  <p id="deviceInfo" class="msg"></p>
+  <p class="note">Every save is stored encrypted on this device first and syncs to RSQ automatically when online. The app locks itself after 5 minutes in the background or 15 minutes without activity.</p>
+ </section>
+ <section data-screen="edit" hidden>
+  <div class="actions"><button id="back" type="button" class="ghost">← Records</button><button id="save" type="button">Save</button></div>
+  <label for="recordId">Record ID</label><input id="recordId" maxlength="80" pattern="[A-Za-z0-9_-]{1,80}">
+  <label for="formPick">Form</label><select id="formPick"></select>
+  <p id="recordNote" class="msg"></p>
+  <div id="conflict" class="banner bad" hidden>Another change reached the server first for: <span id="conflictFields"></span>. Review below, then <button id="keepMine" type="button">Keep my version</button></div>
+  <div id="fields"></div>
+  <p id="saveMsg" class="msg" role="status"></p>
+ </section>
+ <footer class="build"><span id="build"></span></footer>
+</section>
+</main>
+<nav id="tabs" class="tabs" aria-label="App sections" hidden>
+ <button type="button" data-tab="map" aria-current="page"><span class="ti ti-map" aria-hidden="true"></span>MAP</button>
+ <button type="button" data-tab="sitrep"><span class="ti ti-sitrep" aria-hidden="true"></span>SITREP</button>
+ <button type="button" data-tab="conop"><span class="ti ti-conop" aria-hidden="true"></span>CONOP</button>
+ <button type="button" data-tab="tss"><span class="ti ti-tss" aria-hidden="true"></span>TSS</button>
+</nav>
+<script src="ops-modules.js"></script>
+<script type="module" src="app.js"></script>
+</body></html>
