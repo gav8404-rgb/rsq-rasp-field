@@ -1,5 +1,5 @@
 import { OfflineWorkspace } from './offline.mjs';
-import { Vault, VaultError, MIN_PASSPHRASE, createAutoLock } from './vault.mjs';
+import { Vault, VaultError, MIN_PASSPHRASE, createAutoLock, rawDeleteAll } from './vault.mjs';
 import { createTransport, GatewayError, REPAIR_CODES } from './transport.mjs';
 import { createOpsFeed, freshness, OPS_RESYNC_MS } from './ops.mjs';
 import { catalogModel, wireTssFile, autosaveCopy } from './tssFile.mjs';
@@ -429,19 +429,49 @@ const tssApp = {
     show('edit'); scrollTo(0, 0);
   },
 };
+const PAIR_LOST = new Set(['GATEWAY_REPLY_INVALID', 'GATEWAY_FAILED', 'NETWORK_UNAVAILABLE']);
+function pairFailText(e) {
+  const c = codeOf(e);
+  if (!PAIR_LOST.has(c)) return 'Pairing failed: ' + c;
+  return `Pairing failed (${c}${e?.status ? ', HTTP ' + e.status : ''}). The server may have paired this device but the reply was lost. ` +
+    'Get a NEW pairing code on rsqops.com and try again (use the same passphrase).';
+}
+// Everything this app stores on the device: the vault store rsq-rasp-field/kv (vault check, device key pair, device token,
+// session, TSS entries + queue, photos, ops cache), the Save-to-folder handle store rasp-tss-folder and the rsq-pref:*
+// keys. The service worker's app shell (rsq-rasp-field-<build>) and map tile (rsq-rasp-tiles-v1) caches hold no member data
+// and stay, so the app still opens offline. No passphrase needed.
+async function resetDevice() {
+  lockNow('manual');
+  await rawDeleteAll();
+  const drop = (name) => new Promise((res) => { try { const r = indexedDB.deleteDatabase(name); r.onsuccess = r.onerror = r.onblocked = () => res(); } catch { res(); } });
+  await drop('rsq-rasp-field'); await drop('rasp-tss-folder');
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('rsq-pref:')) localStorage.removeItem(k); } catch {   }
+  try { for (const k of await caches.keys()) if (!k.startsWith('rsq-rasp-field-') && !k.startsWith('rsq-rasp-tiles-')) await caches.delete(k); } catch {   }
+  $('#resetBox').hidden = true; $('#resetDev').hidden = false;
+  for (const sel of ['#pairCode', '#pass1', '#pass2', '#unlockPass']) $(sel).value = '';
+  $('#pairCancel').hidden = true; $('#pairNote').hidden = true; say('#unlockMsg', '');
+  show('pair');
+  say('#pairMsg', 'This device was reset. Get a NEW pairing code on rsqops.com and choose a new passphrase.');
+}
 function wire() {
   wireTssFile(tssApp, $);
+  let pairBusy = false;
   $('#pairForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const p1 = $('#pass1').value, p2 = $('#pass2').value;
     if (p1.length < MIN_PASSPHRASE || p1 !== p2) { say('#pairMsg', `Passphrase: use 4 or more random words (at least ${MIN_PASSPHRASE} characters), typed the same twice.`, true); return; }
     if (!navigator.onLine) { say('#pairMsg', 'Pairing needs a connection.', true); return; }
-    say('#pairMsg', 'Pairing…');
+    if (pairBusy) return;
+    pairBusy = true; $('#pairForm button[type=submit]').disabled = true;
+    say('#pairMsg', 'Connecting to the server… (first connection can take up to a minute; tap once)');
+    const warm = transport.warm();
     try {
       if (!(await vault.exists())) await vault.create(p1); else await vault.unlock(p1);
       const pair = await vault.deviceKey();
       const pub = await crypto.subtle.exportKey('jwk', pair.publicKey);
       const label = ($('#label').value || 'device').replace(/[^A-Za-z0-9 ._-]/g, '').slice(0, 40);
+      await warm;
+      say('#pairMsg', 'Pairing… (tap once)');
       const out = await transport.pair({ code: $('#pairCode').value, publicKey: { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y }, label });
       await vault.putJSON('device', { token: out.token, deviceId: out.deviceId, expiresAt: out.expiresAt, label });
       await vault.putJSON('appReference', null);
@@ -449,7 +479,8 @@ function wire() {
       $('#pass1').value = $('#pass2').value = $('#pairCode').value = '';
       $('#pairCancel').hidden = true; $('#pairNote').hidden = true; say('#pairMsg', '');
       await afterUnlock();
-    } catch (e) { say('#pairMsg', 'Pairing failed: ' + codeOf(e), true); }
+    } catch (e) { say('#pairMsg', pairFailText(e), true); }
+    finally { pairBusy = false; $('#pairForm button[type=submit]').disabled = false; }
   });
   $('#unlockForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -458,6 +489,13 @@ function wire() {
     try { await vault.unlock($('#unlockPass').value); $('#unlockPass').value = ''; say('#unlockMsg', ''); await afterUnlock(); }
     catch (e) { if (g !== lockGen) return;
       say('#unlockMsg', e instanceof VaultError && e.code === 'PASSPHRASE_WRONG' ? 'Wrong passphrase.' : 'Unlock failed: ' + codeOf(e), true); }
+  });
+  $('#resetDev').addEventListener('click', () => { $('#resetBox').hidden = false; $('#resetDev').hidden = true; $('#resetGo').focus(); });
+  $('#resetCancel').addEventListener('click', () => { $('#resetBox').hidden = true; $('#resetDev').hidden = false; });
+  $('#resetGo').addEventListener('click', async () => {
+    $('#resetGo').disabled = true;
+    try { await resetDevice(); } catch (e) { say('#unlockMsg', 'Reset failed: ' + codeOf(e), true); }
+    finally { $('#resetGo').disabled = false; }
   });
   $('#wsGo').addEventListener('click', async () => {
     const [p, s] = $('#wsPick').value.split('|');

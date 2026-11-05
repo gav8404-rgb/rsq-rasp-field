@@ -48,6 +48,11 @@
  <h1>Unlock</h1>
  <form id="unlockForm"><label for="unlockPass">Device passphrase</label><input id="unlockPass" type="password" required autocomplete="current-password"><button type="submit">Unlock</button></form>
  <p id="unlockMsg" class="msg" role="status"></p>
+ <button id="resetDev" type="button" class="ghost">Reset this device</button>
+ <div id="resetBox" class="banner bad" role="alertdialog" aria-labelledby="resetQ" hidden>
+  <p id="resetQ"><b>Reset this device?</b> Erases everything stored by RSQ RASP on this device, including entries and photos not yet synced. Use only if you cannot unlock.</p>
+  <div class="actions small"><button id="resetCancel" type="button" class="ghost">Cancel</button><button id="resetGo" type="button">Erase this device</button></div>
+ </div>
 </section>
 <section data-view="map" class="view" hidden aria-label="Map"></section>
 <section data-view="sitrep" class="view" hidden aria-label="SITREP"></section>

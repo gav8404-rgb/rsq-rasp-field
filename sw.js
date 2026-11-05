@@ -1,4 +1,4 @@
-const CACHE = 'rsq-rasp-field-0c30b12b702c';
+const CACHE = 'rsq-rasp-field-7fcc1c7b4a53';
 const SHELL = ["./","index.html","config.json","app.js","vault.mjs","transport.mjs","ops.mjs","app.css","ops-modules.js","ops-modules.css","offline.mjs","tssExport.mjs","tssFile.mjs","raspPhotos.mjs","codec-photos.mjs","raspChunks.mjs","photoTransport.mjs","pwaPhotos.mjs","codec.mjs","catalog.json","manifest.webmanifest","icon-192.png","icon-512.png","apple-touch-icon.png"];
 const TILES = 'rsq-rasp-tiles-v1', TILE_ORIGIN = 'https://tile.openstreetmap.org', TILE_PATH = /^\/\d{1,2}\/\d{1,7}\/\d{1,7}\.png$/, TILE_MAX = 4000, TILE_WAIT_MS = 4000;
 async function trimTiles(c) { try { const ks = await c.keys(); for (const k of ks.slice(0, Math.max(0, ks.length - TILE_MAX))) await c.delete(k); } catch {} }

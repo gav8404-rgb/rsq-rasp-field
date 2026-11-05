@@ -32,6 +32,13 @@ export function createTransport({ apiBase, appOrigin = globalThis.location?.orig
     if (!res.ok) throw new GatewayError(json?.error ?? 'GATEWAY_FAILED', res.status);
     return json;
   }
+  async function warm(ms = 90000) {
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms);
+    try {
+      const r = await fetchImpl(apiBase + '/raspPair', { method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: '', publicKey: {}, label: '' }), signal: ac.signal });
+      await r.text().catch(() => {});
+    } catch {   } finally { clearTimeout(t); }
+  }
   async function pair({ code, publicKey, label }) {
     const out = await post('raspPair', { code, publicKey, label }, false);
     if (!out || typeof out.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(out.token)) throw new GatewayError('GATEWAY_REPLY_INVALID', 200);
@@ -54,5 +61,5 @@ export function createTransport({ apiBase, appOrigin = globalThis.location?.orig
     return out.payload;
   }
   async function photo(bodyObj) { return post('raspPhoto', bodyObj, true); }
-  return Object.freeze({ pair, fetcher, ops, photo });
+  return Object.freeze({ pair, warm, fetcher, ops, photo });
 }
