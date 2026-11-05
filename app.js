@@ -2,6 +2,9 @@ import { OfflineWorkspace } from './offline.mjs';
 import { Vault, VaultError, MIN_PASSPHRASE, createAutoLock } from './vault.mjs';
 import { createTransport, GatewayError, REPAIR_CODES } from './transport.mjs';
 import { createOpsFeed, freshness, OPS_RESYNC_MS } from './ops.mjs';
+import { catalogModel, wireTssFile, autosaveCopy } from './tssFile.mjs';
+import { createPhotoFetcher } from './photoTransport.mjs';
+import { createPwaPhotos } from './pwaPhotos.mjs';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, attrs = {}, text) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; };
@@ -10,6 +13,7 @@ const db = vault.database();
 let cfg, catalog, transport, autoLock, lockChannel = null, session = null, ws = null, current = null, syncing = false, lastSync = null, lastError = null;
 let opsFeed = null, opsRec = null, opsOp = null, opsError = null, opsSyncing = false, opsVersion = 0, tab = 'map', tssScreen = 'workspace';
 let repairCode = null;
+let photos = null;
 const REPAIR_OR_OFF = (c) => REPAIR_CODES.has(c) || c === 'DEVICE_ACCESS_DISABLED';
 const rendered = { map: -1, sitrep: -1, conop: -1 };
 const SYNC_EVERY_MS = 60000;
@@ -66,6 +70,7 @@ function openWorkspace() {
   ws = null;
   if (!session?.selected) return;
   ws = new OfflineWorkspace({ database: db, session, fetcher: transport.fetcher, baseURL: '' });
+  void photos?.open(session);
 }
 
 async function localRecords() {
@@ -75,6 +80,16 @@ async function localRecords() {
   const out = [];
   for (const id of ids) { const row = await db.get(p + id); out.push({ id, queued: row?.queue?.length ?? 0, conflicts: row?.conflicts?.length ?? 0, revision: row?.head?.revision ?? 0, formId: row?.draft?.formId ?? row?.head?.formId, others: row?.authors?.others ?? 0 }); }
   return out.sort((a, b) => a.id < b.id ? -1 : 1);
+}
+async function photoRecords() {
+  if (!session?.selected) return [];
+  const p = partition() + ':', out = [];
+  for (const k of await db.keys(p)) {
+    const id = k.slice(p.length); if (id.startsWith('@')) continue;
+    const row = await db.get(k), d = row?.queue?.length || row?.conflicts?.length ? row.draft : (row?.head?.revision ? row.head : row?.draft);
+    const formId = d?.formId ?? row?.head?.formId; if (formId) out.push({ id, formId, counts: d?.counts ?? {} });
+  }
+  return out.sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 async function queuedTotal() { return (await localRecords()).reduce((n, r) => n + r.queued, 0); }
 
@@ -91,6 +106,7 @@ async function syncAll(reason = 'auto') {
       if (!r.queued || r.conflicts) continue;
       try { await ws.sync(r.id); } catch (e) { lastError = r.id + ': ' + codeOf(e); if (e instanceof GatewayError) throw e; }
     }
+    if (photos) { const pr = await photos.sync(); if (REPAIR_OR_OFF(pr?.code)) throw new GatewayError(pr.code, 401); }
     lastSync = new Date();
   } catch (e) {
     lastError = codeOf(e);
@@ -112,7 +128,8 @@ async function status() {
   const chip = $('#net');
   chip.textContent = online ? 'ONLINE' : 'OFFLINE';
   chip.className = 'chip ' + (online ? 'ok' : 'off');
-  $('#queued').textContent = q ? `${q} waiting to sync` : 'All saved entries synced';
+  const pq = vault.unlocked() && photos ? photos.pending() : 0;
+  $('#queued').textContent = (q ? `${q} waiting to sync` : 'All saved entries synced') + (pq ? ` · ${pq} photo${pq === 1 ? '' : 's'} waiting` : '');
   $('#queued').dataset.count = String(q);
   $('#syncinfo').textContent = syncing ? 'Syncing…' : lastError ? 'Last sync problem: ' + lastError : lastSync ? 'Last sync ' + lastSync.toISOString().slice(11, 16) + 'Z' : '';
   $('#syncinfo').classList.toggle('bad', !!lastError && !syncing);
@@ -136,6 +153,7 @@ function renderForm(form, draft) {
         else { input = el('textarea', { id, 'data-key': key, rows: '2', maxlength: '20000' }); }
         input.value = draft?.answers?.[key] ?? '';
         box.append(lab, input);
+        if (photos) box.append(photos.fieldBox(() => $('#recordId').value.trim(), key, f));
       });
       fs.append(box);
     }
@@ -181,6 +199,7 @@ async function saveCurrent() {
     say('#saveMsg', `Saved on this device ${new Date().toISOString().slice(11, 19)}Z` + (navigator.onLine ? ' — syncing…' : ' — will sync when online.'));
     await status(); await renderRecords();
     if (navigator.onLine) syncAll('save');
+    void autosaveCopy(tssApp);
   } catch (e) { say('#saveMsg', 'Not saved: ' + codeOf(e), true); }
 }
 
@@ -209,12 +228,13 @@ function lockNow(reason = 'manual', { broadcast = true } = {}) {
   autoLock?.stop();
   vault.lock();
   ws?.close(); ws = null; session = null; current = null; lastError = null; repairCode = null;
-  for (const sel of ['#fields', '#records', '#wsPick']) $(sel).replaceChildren();
+  photos?.close();
+  for (const sel of ['#fields', '#records', '#wsPick', '#tssRestoreList']) $(sel).replaceChildren();
   clearOpsViews(); opsRec = null; opsOp = null; opsError = null;
   try { raspOpsForget(document.querySelectorAll('[data-view]')); } catch {   }
   closeExternal();
   for (const sel of ['#recordId']) $(sel).value = '';
-  for (const sel of ['#saveMsg', '#homeMsg', '#recordNote', '#syncinfo', '#wsMsg', '#deviceInfo']) say(sel, '');
+  for (const sel of ['#saveMsg', '#homeMsg', '#recordNote', '#syncinfo', '#wsMsg', '#deviceInfo', '#tssFileMsg', '#photoMsg', '#photoEditMsg']) say(sel, '');
   $('#conflict').hidden = true;
   show('unlock');
   say('#unlockMsg', LOCK_TEXT[reason] ?? 'Locked.');
@@ -384,7 +404,33 @@ async function fillWorkspaces() {
   for (const w of session?.workspaces ?? []) pick.append(el('option', { value: w.projectId + '|' + w.siteId }, `${w.projectId} · ${w.siteId}`));
 }
 
+// photos-r2 E2: the TSS file (Save to a folder / Share / Restore). Local reads only; a restore opens unsaved values in the
+// editor (the file's answers over this device's latest save) and the member saves them with the normal Save.
+let tssCat = null;
+const tssApp = {
+  db,
+  partition: () => partition(),
+  selected: () => (vault.unlocked() && ws ? session?.selected ?? null : null),
+  catalog: () => (tssCat ??= catalog ? catalogModel(catalog) : null),
+  editing: () => (current && $('#fields').childElementCount && formById(current.formId) ? { id: current.id, ...collect() } : null),
+  say: (t, bad = false) => say('#tssFileMsg', t, bad),
+  openFromFile: async (it) => {
+    const row = await ws.read(it.recordId);
+    const known = row.draft?.formId ?? row.head?.formId;
+    if (known && known !== it.formId) throw Object.assign(new Error('EXPORT_FORM_MISMATCH'), { code: 'EXPORT_FORM_MISMATCH' });
+    const base = row.queue.length || row.conflicts.length ? row.draft : (row.head.revision ? row.head : row.draft);
+    const counts = { ...(base?.counts ?? {}) };
+    for (const [gi, n] of Object.entries(it.counts)) counts[gi] = Math.max(counts[gi] ?? 1, n);
+    current = { id: it.recordId, formId: it.formId, sourceIds: base?.sourceIds ?? [] };
+    $('#recordId').value = it.recordId; $('#formPick').value = it.formId; $('#formPick').disabled = !!(row.head.revision || row.queue.length);
+    renderForm(formById(it.formId), { answers: { ...(base?.answers ?? {}), ...it.answers }, counts });
+    recordNote(row); $('#conflict').hidden = true;
+    say('#saveMsg', 'Restored from file: NOT saved yet. Review the answers, then tap Save (saved encrypted on this device first).');
+    show('edit'); scrollTo(0, 0);
+  },
+};
 function wire() {
+  wireTssFile(tssApp, $);
   $('#pairForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const p1 = $('#pass1').value, p2 = $('#pass2').value;
@@ -451,7 +497,7 @@ function wire() {
   }
   window.addEventListener('online', () => { status(); syncAll('online'); syncOps('online'); });
   window.addEventListener('offline', () => { status(); opsStatus(); rendered.sitrep = -1; if (tab === 'sitrep') renderView('sitrep'); });
-  setInterval(() => { if (navigator.onLine && vault.unlocked()) queuedTotal().then((q) => { if (q) syncAll('timer'); }).catch(() => {}); }, SYNC_EVERY_MS);
+  setInterval(() => { if (navigator.onLine && vault.unlocked()) queuedTotal().then((q) => { if (q || photos?.pending()) syncAll('timer'); }).catch(() => {}); }, SYNC_EVERY_MS);
   setInterval(() => { opsStatus(); if (navigator.onLine && vault.unlocked() && opsStale(OPS_RESYNC_MS)) syncOps('timer'); }, SYNC_EVERY_MS);
   let prompt = null;
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); prompt = e; $('#installBtn').hidden = false; });
@@ -465,6 +511,10 @@ async function boot() {
   [cfg, catalog] = await Promise.all([fetch('config.json').then((r) => r.json()), fetch('catalog.json').then((r) => r.json())]);
   transport = createTransport({ apiBase: cfg.apiBase, device, appRef });
   opsFeed = createOpsFeed({ vault, transport });
+  photos = createPwaPhotos({ db, fetcher: createPhotoFetcher({ photo: transport.photo, appRef }), catalog, records: photoRecords,
+    onChange: () => { status().catch(() => {}); if (navigator.onLine) syncAll('photo'); },
+    say: (t, bad = false) => { say('#photoMsg', t, bad); say('#photoEditMsg', t, bad); } });
+  photos.mountTray($('#photoTray'));
   applyTheme(pref.get('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day'), false);
   for (const sel of ['#formNew', '#formPick']) for (const f of catalog.forms) $(sel).append(el('option', { value: f.id }, `${f.id} · ${f.title}`));
   $('#build').textContent = 'build ' + cfg.build;

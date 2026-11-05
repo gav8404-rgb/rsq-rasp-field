@@ -53,5 +53,6 @@ export function createTransport({ apiBase, appOrigin = globalThis.location?.orig
     if (!out || out.version !== 1 || out.op !== op || !out.payload || typeof out.payload !== 'object' || Array.isArray(out.payload)) throw new GatewayError('GATEWAY_REPLY_INVALID', 200);
     return out.payload;
   }
-  return Object.freeze({ pair, fetcher, ops });
+  async function photo(bodyObj) { return post('raspPhoto', bodyObj, true); }
+  return Object.freeze({ pair, fetcher, ops, photo });
 }

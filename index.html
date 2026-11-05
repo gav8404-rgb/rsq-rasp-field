@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://www.rsqops.com; frame-src https://www.openstreetmap.org; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://www.rsqops.com; frame-src https://www.openstreetmap.org; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <title>RSQ RASP</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -64,8 +64,17 @@
   <h2>Records</h2><ul id="records"></ul>
   <p id="homeMsg" class="msg" role="status"></p>
   <p id="syncinfo" class="msg"></p>
+  <h2>Photos</h2>
+  <div id="photoTray"></div>
+  <p id="photoMsg" class="msg" role="status"></p>
   <div class="actions small"><button id="syncNow" type="button" class="ghost">Sync now</button><button id="switchWs" type="button" class="ghost">Workspace</button><button id="opsRefresh" type="button" class="ghost">Refresh ops data</button></div>
   <p id="deviceInfo" class="msg"></p>
+  <h2>TSS file</h2>
+  <div class="actions small"><button id="tssSave" type="button" class="ghost">Save TSS to a folder</button><button id="tssShare" type="button" class="ghost">Share TSS file</button><button id="tssRestore" type="button" class="ghost">Restore from file</button></div>
+  <input id="tssRestoreFile" type="file" accept=".html,text/html" hidden>
+  <p id="tssFileMsg" class="msg" role="status"></p>
+  <ul id="tssRestoreList"></ul>
+  <p class="note">The TSS file holds every survey of this workspace on this device (saved, not yet sent, and what is open in the editor). It is CONFIDENTIAL and contains PII: keep it only in the designated confidential location. It is built on this device with no connection. Share sends it with the device share sheet (AirDrop, Messages, Mail, Files); without file sharing it is downloaded instead. Restore opens the answers for review; nothing is saved until you tap Save.</p>
   <p class="note">Every save is stored encrypted on this device first and syncs to RSQ automatically when online. The app locks itself after 5 minutes in the background or 15 minutes without activity.</p>
  </section>
  <section data-screen="edit" hidden>
@@ -74,6 +83,7 @@
   <label for="formPick">Form</label><select id="formPick"></select>
   <p id="recordNote" class="msg"></p>
   <div id="conflict" class="banner bad" hidden>Another change reached the server first for: <span id="conflictFields"></span>. Review below, then <button id="keepMine" type="button">Keep my version</button></div>
+  <p id="photoEditMsg" class="msg" role="status"></p>
   <div id="fields"></div>
   <p id="saveMsg" class="msg" role="status"></p>
  </section>
