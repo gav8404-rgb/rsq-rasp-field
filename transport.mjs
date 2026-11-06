@@ -10,10 +10,22 @@ export function canonical(value) {
 async function sha(text) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(text)))].map((b) => b.toString(16).padStart(2, '0')).join(''); }
 
 export class GatewayError extends Error { constructor(code, status) { super(code); this.code = code; this.status = status; } }
+const MASK_RUN = /[A-Za-z0-9_-]{20,}/g;
+const maskHead = (s) => String(s).replace(MASK_RUN, (m) => `[${m.length} chars]`).replace(/\s+/g, ' ').slice(0, 80);
+function replyDiag(stage, res, text, head) {
+  let host = '', contentType = '';
+  try { host = new URL(res.url).host; } catch {   }
+  try { contentType = maskHead(res.headers.get('content-type') ?? ''); } catch {   }
+  return Object.freeze({ stage, status: res.status, contentType, length: text === null ? -1 : text.length, type: res.type ?? '', redirected: !!res.redirected, host, head });
+}
+function shapeHead(out) {
+  const obj = out && typeof out === 'object' && !Array.isArray(out), tok = obj ? out.token : undefined;
+  return maskHead('token=' + typeof tok + (typeof tok === 'string' ? '(' + tok.length + ')' : '') + ' ' + (obj ? 'keys=' + Object.keys(out).join(',') : 'reply=' + (Array.isArray(out) ? 'array' : out === null ? 'null' : typeof out)));
+}
 export const REPAIR_CODES = new Set(['DEVICE_TOKEN_REQUIRED', 'DEVICE_UNKNOWN', 'DEVICE_EXPIRED', 'DEVICE_REVOKED', 'SIGNATURE_INVALID']);
 
 export function createTransport({ apiBase, appOrigin = globalThis.location?.origin, device, appRef, fetchImpl = (...a) => fetch(...a) }) {
-  async function post(fn, bodyObj, signed) {
+  async function post(fn, bodyObj, signed, onReply) {
     const body = JSON.stringify(bodyObj), headers = { 'content-type': 'application/json' };
     if (signed) {
       const { token, privateKey } = await device();
@@ -27,9 +39,11 @@ export function createTransport({ apiBase, appOrigin = globalThis.location?.orig
     try {
       res = await fetchImpl(apiBase + '/' + fn, { method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers, body });
     } catch { throw new GatewayError('NETWORK_UNAVAILABLE', 0); }
-    let json;
-    try { json = await res.json(); } catch { throw new GatewayError('GATEWAY_REPLY_INVALID', res.status); }
+    let json, text = null;
+    try { text = await res.text(); json = JSON.parse(text); }
+    catch { throw Object.assign(new GatewayError('GATEWAY_REPLY_INVALID', res.status), { diag: replyDiag('parse', res, text, text === null ? '[body not readable]' : maskHead(text)) }); }
     if (!res.ok) throw new GatewayError(json?.error ?? 'GATEWAY_FAILED', res.status);
+    if (onReply) onReply(res, text);
     return json;
   }
   async function warm(ms = 90000) {
@@ -40,8 +54,9 @@ export function createTransport({ apiBase, appOrigin = globalThis.location?.orig
     } catch {   } finally { clearTimeout(t); }
   }
   async function pair({ code, publicKey, label }) {
-    const out = await post('raspPair', { code, publicKey, label }, false);
-    if (!out || typeof out.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(out.token)) throw new GatewayError('GATEWAY_REPLY_INVALID', 200);
+    let seen = null;
+    const out = await post('raspPair', { code, publicKey, label }, false, (res, text) => { seen = { res, text }; });
+    if (!out || typeof out.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(out.token)) throw Object.assign(new GatewayError('GATEWAY_REPLY_INVALID', 200), { diag: replyDiag('shape', seen.res, seen.text, shapeHead(out)) });
     return out;
   }
   async function fetcher(url, init = {}) {

@@ -434,7 +434,13 @@ function pairFailText(e) {
   const c = codeOf(e);
   if (!PAIR_LOST.has(c)) return 'Pairing failed: ' + c;
   return `Pairing failed (${c}${e?.status ? ', HTTP ' + e.status : ''}). The server may have paired this device but the reply was lost. ` +
-    'Get a NEW pairing code on rsqops.com and try again (use the same passphrase).';
+    'Get a NEW pairing code on rsqops.com and try again (use the same passphrase).' + pairDetails(e);
+}
+function pairDetails(e) {
+  const d = e?.diag;
+  if (!d) return '';
+  return `\nDetails: ${d.stage} · HTTP ${d.status} · ${d.contentType || 'no content-type'} · ${d.length < 0 ? 'body unreadable' : d.length + ' chars'} · ${d.type || 'no type'}` +
+    `${d.redirected ? ' · redirected to ' + (d.host || '?') : ''} · "${d.head}"`;
 }
 // Everything this app stores on the device: the vault store rsq-rasp-field/kv (vault check, device key pair, device token,
 // session, TSS entries + queue, photos, ops cache), the Save-to-folder handle store rasp-tss-folder and the rsq-pref:*
